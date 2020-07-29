@@ -32,8 +32,9 @@ class Blogabet(object):
 	def get_driver(self):
 		options 	= 	Options()
 		options.add_argument('--headless')
+
 		
-		return Chrome(executable_path='chromedriver.exe', chrome_options=options)
+		return Chrome(executable_path='webdriver/chromedriver', chrome_options=options)
 
 
 	def blogabet_login(self):
