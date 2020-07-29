@@ -45,7 +45,7 @@ class Blogabet(object):
 		options 		= 	Options()
 
 		#	Comment this line to not headless web navigator
-		options.add_argument('--headless')
+		#options.add_argument('--headless')
 
 		webdriver_path 	= 	'webdriver/chromedriver'
 		if 'Win' in str(platform.system()):
@@ -135,8 +135,8 @@ class Blogabet(object):
 
 	def scrape_tipster(self, tipster):
 		#	Scrape tipster stats from its blog page. Method returns a dict with stats
-		if not self.logged_in:
-			self.blogabet_login()
+		#if not self.logged_in:
+			#self.blogabet_login()
 		try:
 			self.go_to_tipster_page(tipster)
 		except Exception as e:
@@ -152,8 +152,14 @@ class Blogabet(object):
 		tipster_dict['profit']		=	driver.find_element_by_id('header-profit').get_attribute('innerHTML').strip()
 		tipster_dict['yield']		=	driver.find_element_by_id('header-yield').get_attribute('innerHTML').strip()
 		tipster_dict['n_followers']	=	driver.find_element_by_id('header-followers').get_attribute('innerHTML').strip()
-	
-	                              
+
+		try:
+			tipster_dict['month_price']	=	driver.find_element_by_class_name('tipster-price').get_attribute('innerHTML').strip().split('/')[0].strip()
+		except:
+			tipster_dict['month_price']	=	'free'
+
+
+
 		WebDriverWait(driver,50).until(EC.presence_of_element_located((By.XPATH, '//*[contains(text(), "Blog menu")]'))).click()
 
 		options_menu 	=	WebDriverWait(driver,30).until(EC.presence_of_element_located((By.XPATH, '//*[contains(@class, "modal-body blog-menu")]')))
@@ -162,40 +168,54 @@ class Blogabet(object):
 		#	Entramos en el menú de estadísticas
 		options_menu.find_elements_by_tag_name('a')[1].click()
 
-		stats_categories 	=	['SPORTS', 'STAKES', 'BOOKIES', 'ODDS RANGE']
+		#	Clickamos en 'All-times' para obtener las estadísticas totales de los tipsters de pago
+		pass
+
+
+		#	Agregar al bucle 'CATEGORIES' y 'ARCHIVE'
+		stats_categories 	=	['SPORTS', 'STAKES', 'BOOKIES', 'ODDS RANGE', 'ARCHIVE']
 		for sc in stats_categories:
-			#	Comprobamos si el menú esta desplegado
-			collapse 		=	WebDriverWait(self.driver,30).until(EC.presence_of_element_located((By.XPATH, '//*[contains(text(), "{}")]'.format(sc)))).find_element_by_xpath('../../..').find_element_by_id('collapse{}alltime'.format(sc.lower().replace(' ', '_')))
-			collapse_class	=	collapse.get_attribute('class')
+			try:
+				#	Comprobamos si el menú esta desplegado
+				collapse 		=	WebDriverWait(self.driver,30).until(EC.presence_of_element_located((By.XPATH, '//*[contains(text(), "{}")]'.format(sc)))).find_element_by_xpath('../../..').find_element_by_id('collapse{}alltime'.format(sc.lower().replace(' ', '_')))
+				collapse_class	=	collapse.get_attribute('class')
 
-			table 			=	collapse.find_element_by_tag_name('table')
+				table 			=	collapse.find_element_by_tag_name('table')
 
-			sc_dicts		=	[]											
-			table_headers 	=	table.find_elements_by_tag_name('th')		#	encabezados de la tabla
-			regs 			=	table.find_elements_by_tag_name('tr')[1:]	#	cada uno de los registros de la tabla
+				sc_dicts		=	[]											
+				table_headers 	=	table.find_elements_by_tag_name('th')		#	encabezados de la tabla
+				regs 			=	table.find_elements_by_tag_name('tr')[1:]	#	cada uno de los registros de la tabla
 
-			for r in regs:
-				cols 			=	[]
-				col_0 	=	r.find_element_by_tag_name('td').get_attribute('innerHTML').replace('\n','')[28:].strip()
-				if 'Bet365' in col_0: col_0 = 'Bet365'
-				cols.append(col_0)
-				for col in r.find_elements_by_tag_name('td')[1:]:
-					try:
-						col = 	col.find_element_by_tag_name('span').get_attribute('innerHTML').strip()
-					except:
-						col = 	col.get_attribute('innerHTML').strip()
+				for r in regs:
+					cols 			=	[]
+					col_0 	=	r.find_element_by_tag_name('td').get_attribute('innerHTML').replace('\n','')[28:].strip()
+					if 'Bet365' in col_0: col_0 = 'Bet365'
+					cols.append(col_0)
+					for col in r.find_elements_by_tag_name('td')[1:]:
+						try:
+							col = 	col.find_element_by_tag_name('span').get_attribute('innerHTML').strip()
+						except:
+							col = 	col.get_attribute('innerHTML').strip()
 
-					cols.append(col)
+						cols.append(col)
 
-				ths 	=	[]
-				sc_dict	=	{}											#	diccionario para almacenar cada registro de la tabla
-				for th in table_headers:
-					sc_dict[th.get_attribute('innerHTML').strip().lower().replace(' ', '_').replace('.','').replace('stakes', 'stake').replace('sports', 'sport').replace('bookies', 'bookie')] 	=	cols[table_headers.index(th)] 
-			
-				sc_dicts.append(sc_dict)
+					ths 	=	[]
+					sc_dict	=	{}											#	diccionario para almacenar cada registro de la tabla
+					for th in table_headers:
+						sc_dict[th.get_attribute('innerHTML').strip().lower().replace(' ', '_').replace('.','').replace('stakes', 'stake').replace('sports', 'sport').replace('bookies', 'bookie')] 	=	cols[table_headers.index(th)] 
+				
+					sc_dicts.append(sc_dict)
 
-			tipster_dict[sc.lower()]	=	sc_dicts
-			
+				tipster_dict[sc.lower()]	=	sc_dicts
+			except:
+				#print('Error gettin stats ({})'.format(sc))
+				pass
+
+		for b in tipster_dict['bookies']:
+			b['bookie'] 	=	b['bookie'].split('&')[0].strip()
+		'''
+		'''
+
 		return tipster_dict
 
 			 
