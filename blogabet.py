@@ -1,6 +1,9 @@
 from __future__										import 	print_function
 import  time
 import 	datetime
+import 	platform
+from 	getpass 									import 	getpass
+
 
 from 	bet_markets    								import  set_market_and_bet
 
@@ -22,19 +25,36 @@ class Blogabet(object):
 
 	logged_in 	=	False
 	
-	def __init__(self, email, password):
-		self.email  	=	email
-		self.password  	=	password
-
+	def __init__(self):
+		self.email, self.password   	=	self.get_credentials()
 		self.driver 	=	self.get_driver()
+		
 
+
+	def get_credentials(self, credentials_path='credentials.csv'):
+		#	Get credentials
+		try:
+			email, password 	=	open(credentials_path, 'r').readlines()[0].split(';')
+		except Exception as e:
+			email 		=	input('Could not get Blogabet credentials from credentials file. Please, introduce your email (the one you registered with): ')
+			password	=	getpass('Introduce your blogabet password: ')
+
+		return email, password
 
 	def get_driver(self):
-		options 	= 	Options()
+		options 		= 	Options()
+
+		#	Comment this line to not headless web navigator
 		options.add_argument('--headless')
 
-		
-		return Chrome(executable_path='webdriver/chromedriver', chrome_options=options)
+		webdriver_path 	= 	'webdriver/chromedriver'
+		if 'Win' in str(platform.system()):
+			webdriver_path	=	webdriver_path+'.exe'
+
+		try:		
+			return Chrome(executable_path=webdriver_path, chrome_options=options)
+		except:
+			print('Could not get webdriver, please download webdriver for your platform from https://chromedriver.chromium.org/')
 
 
 	def blogabet_login(self):
@@ -70,10 +90,10 @@ class Blogabet(object):
 			self.driver.get('https://{}.blogabet.com/'.format(tipster))
 
 			try:
-				WebDriverWait(self.driver,50).until(EC.presence_of_element_located((By.XPATH, '//*[contains(text(), "Win rate")]')))
+				WebDriverWait(self.driver,20).until(EC.presence_of_element_located((By.XPATH, '//*[contains(text(), "Win rate")]')))
 				return True
 			except:
-				if 'Blog not found' in driver.page_source:
+				if 'Blog not found' in self.driver.page_source:
 					raise Exception('Blog not found for tipster: {}'.format(tipster))
 				else:
 					raise Exception('Could not get tipster page')
@@ -82,12 +102,48 @@ class Blogabet(object):
 			raise Exception(e)
 
 
+	def export_stats_to_html(self):
+		pass
+
+
+
+
+	def print_tipster_info(self, t):
+		#	Method to print information in a more kind manner. Receives tipster dict
+		'''
+		print('Tipster: ', t['name'])
+		print('Total picks: ', t['n_picks'])
+		print('Blogabet followers: ', t['n_followers'])
+		print('----------------------------------------')
+		print('Total profit: ', t['profit'])
+		print('Total yield: ', t['yield'])
+		print('----------------------------------------')
+		print('-----------------SPORTS-----------------')
+		for sp in t['sports']:
+			print(sp['sport'], '\ttotal picks: ', sp['picks'])
+			print('\t\twin rate: ', sp['win_rate'], ' - ', 'profit: ', sp['profit'],  ' - ', 'yield: ', sp['yield'])
+			print('\t\todds average: ', sp['odds_avg'], ' - ', 'Stake average: ',  sp['stake_avg'])
+
+		'''		
+		print(t)
+
+
+
+
+
+
+
 	def scrape_tipster(self, tipster):
 		#	Scrape tipster stats from its blog page. Method returns a dict with stats
 		if not self.logged_in:
 			self.blogabet_login()
+		try:
+			self.go_to_tipster_page(tipster)
+		except Exception as e:
+			raise e
 
 		driver 	=	self.driver
+
 
 		tipster_dict 	=	{'name':tipster}
 		self.go_to_tipster_page(tipster)
@@ -143,133 +199,3 @@ class Blogabet(object):
 		return tipster_dict
 
 			 
-
-	def get_last_pick_in_feed(self, my_tipsters=True):
-		#	Si my_tipsters = False, obtiene los picks del feed general de blogabet, en vez de aquellos de los tipsters a los que seguimos
-		if my_tipsters:
-			WebDriverWait(self.driver,50).until(EC.presence_of_element_located((By.XPATH, '//*[contains(text(), "My tipsters")]'))).click()
-
-		time.sleep(2)
-
-		media_list_xpath	=	'.//*[contains(@class, "media-list")]'
-
-		#	Elementos html correspondientes a los picks
-		picks_in_feed		=	WebDriverWait(self.driver,50).until(EC.presence_of_element_located((By.XPATH, media_list_xpath))).find_elements_by_tag_name('li')
-		try:
-			last_pick_in_feed 	= 	self.get_pick_from_html(picks_in_feed[0])
-		except Exception as e:
-			raise(e)
-
-		return last_pick_in_feed
-
-
-	def get_picks_in_feed(self, my_tipsters=True):
-		#	El parámetro opcional 'my_tipsters' indica si queremos tomar los picks de los tipsters a los
-		#	que seguimos o del feed general de blogabet
-		#	Pinchamos en 'my tipsters'
-		if my_tipsters:
-			WebDriverWait(self.driver,50).until(EC.presence_of_element_located((By.XPATH, '//a[contains(text(), "My tipsters")]'))).click()
-			time.sleep(2)
-
-		picks_in_feed 		=	[]
-		media_list_xpath	=	'.//*[contains(@class, "media-list")]'
-		picks_in_feed_elem	=	WebDriverWait(self.driver,50).until(EC.presence_of_element_located((By.XPATH, media_list_xpath))).find_elements_by_tag_name('li')
-
-		for p in picks_in_feed_elem:
-			try:
-				picks_in_feed.append(get_pick_from_html(p)) 	
-			except Exception as e:
-				#print(e)
-				pass
-
-		return picks_in_feed
-
-
-	def get_pick_from_html(self, elem):
-		#	Recibe el elemento <li> en el que se encuentra el pick del feed y forma el objeto
-		pick 	=	{}
-
-		soup 	=	BeautifulSoup(elem.get_attribute('innerHTML'), 'html.parser')
-
-		if 'Click here to see the pick' in soup:
-			#	Pinchamos en 'here' y scrapeamos el pick 
-			return None
-
-		pick['url']		=	soup.find('a', {'class':'report enable-tooltip'})['data-url']
-		pick['tipster']	=	pick['url'].split('.')[0].split('//')[1]
-		
-		if soup.find('i', {'class':'fa-plus-square'}):
-			pick['type']=	'combo_pick'
-			return pick
-		
-		pick['match']	=	soup.find('a', {'href':pick['url']}).text.replace(' - ',' v ')
-
-		pick_odds 		=	soup.find('div', {'class':'pick-line'}).text
-		pick['pick']	=	pick_odds.split('@')[0].strip()
-		pick['odds']	=	pick_odds.split('@')[1].strip()
-		pick['stake']	=	soup.find('span', {'class':'label label-default'}).text.strip()
-		pick['booker']	=	soup.find('a', {'class':'label label-primary'}).text.strip()
-
-		type_kickoff	=	soup.findAll('small', {'class':'text-muted'})[1].text.strip()
-
-		pick['type']	=	type_kickoff.split('/')[0].strip() + ' - ' + type_kickoff.split('/')[1].strip()
-		pick['kickoff']	=	type_kickoff.split('/')[2].strip().replace('Kick off: ','')
-		pick['isLive']	=	('Livebet' in pick['type'])
-
-		pick['placed_stake']	=	'not_set'
-
-		pick['date']	=	datetime.datetime.now().replace(microsecond=0)
-
-		try:
-			pick['market']	=	''
-			pick['bet']		=	''
-			pick 			=	set_market_and_bet(pick)
-			
-			return pick
-		
-		except:
-			return pick
-			
-
-	def compare_picks(self, p, p_):
-		#	Boolean. Check 'url' attribute from pick to tell whter they are the same
-		return p['url'] == p_['url']
-
-
-	def print_pick(self, p):
-		try:
-			to_print 	=	'''-----------------------------------------------------------------------------------------------------------\nMATCH: {}	\nPICK: {}	\t 	MARKET: {} - BET: {} \nStake: {} (placed_stake: {})	Odds: {} \t isLive: {} \t Tipster: {}\n-----------------------------------------------------------------------------------------------------------'''.format(p['match'], p['pick'], p['market'], p['bet'], p['stake'], p['placed_stake'], p['odds'], p['isLive'], p['tipster'])
-			print(to_print)
-		except Exception as e:
-			print('Could not print pick ({})'.format(e))
-
-
-	def watch_blogabet_feed(self):
-		#	Watch blogabet feed and 
-		
-		driver 	=	self.driver
-		
-		if not self.logged_in:
-			self.blogabet_login()
-
-		#	We get the last pck in our feed to compare
-		pd 	= 	self.get_last_pick_in_feed(my_tipsters=True)
-		print('Last pick in feed: ')
-		self.print_pick(pd)
-		#	We set a refresh time to watch the feed
-		refresh_time 	= 	20
-		print('Watching blogabet feed...')
-		
-		while True:
-			pd_ 	=	self.get_last_pick_in_feed(my_tipsters=True)		
-			#	If most recent pick changes...
-			if not self.compare_picks(pd, pd_): 
-				print('Watch a new pick in feed ({})'.format(datetime.datetime.now().replace(microsecond=0)))
-				#	Here, we can set some action to do with new pick
-				self.print_pick(pd_)
-				#	Return a dict with pick information
-				#return pd_
-
-			time.sleep(refresh_time)
-			driver.refresh()
-

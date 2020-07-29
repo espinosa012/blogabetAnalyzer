@@ -1,5 +1,4 @@
 from 	bs4 										import 	BeautifulSoup
-from 	pymongo 									import 	MongoClient
 
 from 	selenium.webdriver 							import 	FirefoxOptions, Firefox
 from    selenium.webdriver.support.wait     		import 	WebDriverWait
