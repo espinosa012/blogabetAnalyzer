@@ -4,9 +4,6 @@ import 	datetime
 import 	platform
 from 	getpass 									import 	getpass
 
-
-from 	bet_markets    								import  set_market_and_bet
-
 from 	bs4 										import 	BeautifulSoup
 
 from 	selenium.webdriver 							import 	Chrome
@@ -45,7 +42,7 @@ class Blogabet(object):
 		options 		= 	Options()
 
 		#	Comment this line to not headless web navigator
-		#options.add_argument('--headless')
+		options.add_argument('--headless')
 
 		webdriver_path 	= 	'webdriver/chromedriver'
 		if 'Win' in str(platform.system()):

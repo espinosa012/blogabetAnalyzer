@@ -1,5 +1,3 @@
-
-
 from blogabet 	import Blogabet
 
 try:
