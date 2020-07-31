@@ -51,7 +51,7 @@ class Blogabet(object):
 		try:		
 			return Chrome(executable_path=webdriver_path, chrome_options=options)
 		except:
-			print('Could not get webdriver, please download webdriver for your platform from https://chromedriver.chromium.org/')
+			raise Exception('Could not get webdriver, please download webdriver for your platform from https://chromedriver.chromium.org/')
 
 
 	def blogabet_login(self):
