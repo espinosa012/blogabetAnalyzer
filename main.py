@@ -10,7 +10,7 @@ try:
 	tipster 	=	input('Tipster to analyze: ').strip()
 	t 	=	b.scrape_tipster(tipster)
 
-	b.print_tipster_info(t)
+	#b.print_tipster_info(t)
 	b.driver.close()
 
 except Exception as e:

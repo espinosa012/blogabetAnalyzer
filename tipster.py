@@ -16,9 +16,12 @@ class Tipster():
 	yield_  	=	''
 	n_followers	=	''
 	history		=	False	
+	month_price	=	''
 
 	sports_stats	=	[]
 	stakes_stats 	=	[]
+
+	bet365_stats 	=	[]
 
 	def __init__(self, args):
 
@@ -27,6 +30,12 @@ class Tipster():
 		self.profit			=	args['profit']
 		self.yield_			=	args['yield']
 		self.n_followers	=	args['n_followers']
+		self.month_price	=	args['month_price']
+
+		for sp in args['sports']:
+			self.sports_stats.append(sp)
+
+		self.bet365_stats 	=	args['bookies'][0]
 
 
 	def to_dict(self):

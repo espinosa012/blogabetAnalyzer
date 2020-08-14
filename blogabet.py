@@ -5,7 +5,7 @@ import 	platform
 from 	getpass 									import 	getpass
 
 from 	bs4 										import 	BeautifulSoup
-
+from 	PIL 										import 	Image
 from 	selenium.webdriver 							import 	Chrome
 from    selenium.webdriver.support.wait     		import 	WebDriverWait
 from    selenium.webdriver.chrome.options   		import 	Options
@@ -42,14 +42,16 @@ class Blogabet(object):
 		options 		= 	Options()
 
 		#	Comment this line to not headless web navigator
-		options.add_argument('--headless')
+		#options.add_argument('--headless')
 
 		webdriver_path 	= 	'webdriver/chromedriver'
 		if 'Win' in str(platform.system()):
 			webdriver_path	=	webdriver_path+'.exe'
 
-		try:		
-			return Chrome(executable_path=webdriver_path, chrome_options=options)
+		try:
+			driver 	=	Chrome(executable_path=webdriver_path, chrome_options=options)
+			driver.maximize_window()
+			return driver
 		except Exception as e:
 			raise Exception('Could not get webdriver ({}), please download webdriver for your platform from https://chromedriver.chromium.org/'.format(e))
 
@@ -128,6 +130,28 @@ class Blogabet(object):
 
 
 
+	def get_profit_chart_image(self, driver, tipster):
+		profit_chart 	=	driver.find_element_by_class_name('stats').find_elements_by_class_name('col-md-12')[2]#.find_elements_by_tag_name('path')
+
+		location 	= 	profit_chart.location
+		size 		= 	profit_chart.size
+
+		driver.save_screenshot("./profit_charts/{}.png".format(tipster))
+		x 	= 	location['x']
+		y 	= 	location['y']
+		
+		width 	= 	location['x']+size['width']
+		height 	= 	location['y']+size['height']
+
+		im 	= 	Image.open('profit_charts/{}.png'.format(tipster))
+		im 	= 	im.crop((int(x), int(y), int(width), int(height)))
+		im.save('./profit_charts/{}.png'.format(tipster))
+		'''
+		'''
+
+
+
+
 
 
 	def scrape_tipster(self, tipster):
@@ -157,12 +181,18 @@ class Blogabet(object):
 
 
 
+		#	Gráfico histórico
+		self.get_profit_chart_image(driver, tipster_dict['name'])		
+
+
+
+
+		#	Entramos en el menú de estadísticas
 		WebDriverWait(driver,50).until(EC.presence_of_element_located((By.XPATH, '//*[contains(text(), "Blog menu")]'))).click()
 
 		options_menu 	=	WebDriverWait(driver,30).until(EC.presence_of_element_located((By.XPATH, '//*[contains(@class, "modal-body blog-menu")]')))
 		time.sleep(1)
 
-		#	Entramos en el menú de estadísticas
 		options_menu.find_elements_by_tag_name('a')[1].click()
 
 		#	Clickamos en 'All-times' para obtener las estadísticas totales de los tipsters de pago
