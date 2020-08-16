@@ -4,6 +4,8 @@ import 	datetime
 import 	platform
 from 	getpass 									import 	getpass
 
+import 	bba_image
+
 from 	bs4 										import 	BeautifulSoup
 from 	PIL 										import 	Image
 from 	selenium.webdriver 							import 	Chrome
@@ -12,6 +14,7 @@ from    selenium.webdriver.chrome.options   		import 	Options
 from 	selenium.webdriver.common.keys 				import 	Keys
 from 	selenium.webdriver.common.by 				import 	By
 from 	selenium.webdriver.support 					import 	expected_conditions as EC
+from 	selenium.webdriver.common.action_chains 	import 	ActionChains
 
 
 
@@ -23,8 +26,8 @@ class Blogabet(object):
 	logged_in 	=	False
 	
 	def __init__(self):
-		self.email, self.password   	=	self.get_credentials()
-		self.driver 	=	self.get_driver()
+		#self.email, self.password   	=	self.get_credentials()
+		self.driver 					=	self.get_driver()
 		
 
 
@@ -59,6 +62,10 @@ class Blogabet(object):
 	def blogabet_login(self):
 
 		#	Login info
+		self.email 		=	input('Blogabet email: ')
+		self.password 	=	input('Blogabet password: ')
+
+		#!!!!
 		email 		=	self.email
 		password	=	self.password	
 
@@ -128,27 +135,49 @@ class Blogabet(object):
 
 
 
+	def get_last_year_profits(self, tipster):
+		#self.save_profit_chart_image(tipster)
+
+		profit_chart 	=	self.driver.find_element_by_class_name('stats').find_elements_by_class_name('col-md-12')[2]#.find_elements_by_tag_name('path')
+		#value_elements	=	profit_chart.find_elements_by_tag_name('text')	
+
+		#	Obtenemos los valores del eje 'y' de la gráfica
+		y_values 			=	bba_image.get_values_from_elements(profit_chart.find_elements_by_tag_name('text'))
+		
+
+		#	Obtenemos los valores reales del gráfico
+		values 	=	bba_image.get_chart_values(self.driver)		
 
 
-	def get_profit_chart_image(self, driver, tipster):
-		profit_chart 	=	driver.find_element_by_class_name('stats').find_elements_by_class_name('col-md-12')[2]#.find_elements_by_tag_name('path')
+		#bba_image.get_profit_chart_info(tipster, value_elements)
+
+
+
+	def save_profit_chart_image(self, tipster):
+		#	Guarda una imagen png del elemento web del gráfico de beneficios del último año
+
+		profit_chart 	=	self.driver.find_element_by_class_name('stats').find_elements_by_class_name('col-md-12')[2]#.find_elements_by_tag_name('path')
 
 		location 	= 	profit_chart.location
 		size 		= 	profit_chart.size
 
-		driver.save_screenshot("./profit_charts/{}.png".format(tipster))
+		self.driver.save_screenshot("./profit_charts/{}.png".format(tipster))
+		
 		x 	= 	location['x']
 		y 	= 	location['y']
 		
-		width 	= 	location['x']+size['width']
-		height 	= 	location['y']+size['height']
+		width 	= 	location['x']+size['width'] 
+		height 	= 	location['y']+size['height'] 
 
-		im 	= 	Image.open('profit_charts/{}.png'.format(tipster))
+
+
+
+		#	.convert('RGB') si se somite, incluye canal alpha
+		im 	= 	Image.open('profit_charts/{}.png'.format(tipster)).convert('RGB')
+
+		#	Recortamos la porción de la pantalla correspondiente a la gráfica 
 		im 	= 	im.crop((int(x), int(y), int(width), int(height)))
 		im.save('./profit_charts/{}.png'.format(tipster))
-		'''
-		'''
-
 
 
 
@@ -163,39 +192,38 @@ class Blogabet(object):
 		except Exception as e:
 			raise e
 
-		driver 	=	self.driver
+		#driver 	=	self.driver
 
 
 		tipster_dict 	=	{'name':tipster}
 		self.go_to_tipster_page(tipster)
 
-		tipster_dict['n_picks']		=	driver.find_element_by_id('header-picks').get_attribute('innerHTML').strip()
-		tipster_dict['profit']		=	driver.find_element_by_id('header-profit').get_attribute('innerHTML').strip()
-		tipster_dict['yield']		=	driver.find_element_by_id('header-yield').get_attribute('innerHTML').strip()
-		tipster_dict['n_followers']	=	driver.find_element_by_id('header-followers').get_attribute('innerHTML').strip()
+		tipster_dict['n_picks']		=	self.driver.find_element_by_id('header-picks').get_attribute('innerHTML').strip()
+		tipster_dict['profit']		=	self.driver.find_element_by_id('header-profit').get_attribute('innerHTML').strip()
+		tipster_dict['yield']		=	self.driver.find_element_by_id('header-yield').get_attribute('innerHTML').strip()
+		tipster_dict['n_followers']	=	self.driver.find_element_by_id('header-followers').get_attribute('innerHTML').strip()
 
 		try:
-			tipster_dict['month_price']	=	driver.find_element_by_class_name('tipster-price').get_attribute('innerHTML').strip().split('/')[0].strip()
+			tipster_dict['month_price']	=	self.driver.find_element_by_class_name('tipster-price').get_attribute('innerHTML').strip().split('/')[0].strip()
 		except:
 			tipster_dict['month_price']	=	'free'
 
 
 
-		#	Gráfico histórico
-		self.get_profit_chart_image(driver, tipster_dict['name'])		
+		
 
 
 
 
 		#	Entramos en el menú de estadísticas
-		WebDriverWait(driver,50).until(EC.presence_of_element_located((By.XPATH, '//*[contains(text(), "Blog menu")]'))).click()
+		WebDriverWait(self.driver,50).until(EC.presence_of_element_located((By.XPATH, '//*[contains(text(), "Blog menu")]'))).click()
 
-		options_menu 	=	WebDriverWait(driver,30).until(EC.presence_of_element_located((By.XPATH, '//*[contains(@class, "modal-body blog-menu")]')))
+		options_menu 	=	WebDriverWait(self.driver,30).until(EC.presence_of_element_located((By.XPATH, '//*[contains(@class, "modal-body blog-menu")]')))
 		time.sleep(1)
 
 		options_menu.find_elements_by_tag_name('a')[1].click()
 
-		#	Clickamos en 'All-times' para obtener las estadísticas totales de los tipsters de pago
+		#	Clickamos en 'All-times' para obtener las estadísticas totales de los tipsters de pago (no funciona)
 		pass
 
 
@@ -238,10 +266,41 @@ class Blogabet(object):
 				#print('Error gettin stats ({})'.format(sc))
 				pass
 
+		#	Corregimos el error que aparece al tomar la info de bookies con bloqueo
 		for b in tipster_dict['bookies']:
 			b['bookie'] 	=	b['bookie'].split('&')[0].strip()
-		'''
-		'''
+
+
+
+		#	Datos por meses
+		history 	=	[]
+
+		WebDriverWait(self.driver,50).until(EC.presence_of_element_located((By.XPATH, '//*[contains(text(), "STATISTICS")]'))).click()
+		time.sleep(1.5)
+		WebDriverWait(self.driver,30).until(EC.presence_of_element_located((By.XPATH, '//*[contains(@class, "modal-body blog-menu")]'))).find_elements_by_tag_name('a')[2].click()
+
+
+		time.sleep(1.5)
+
+		trs 	=	self.driver.find_elements_by_class_name('tbl')[5].find_elements_by_tag_name('tr')
+		for tr in trs[1:]:
+			tds 	= 	tr.find_elements_by_tag_name('td')
+
+			month 	=	tds[0].get_attribute('innerHTML').strip().split('</label>')[1].strip()
+			n_picks	=	tds[1].get_attribute('innerHTML').strip()
+			profit 	=	tds[2].get_attribute('innerHTML').strip().split('>')[1].strip().split('<')[0]
+
+			history.append({
+				'month':month,
+				'n_picks':n_picks,
+				'profit':profit
+			})
+
+			'''
+			'''
+
+		tipster_dict['history'] 	=	history
+		print(tipster_dict)
 
 		return tipster_dict
 
