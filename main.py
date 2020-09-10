@@ -4,16 +4,11 @@ try:
 	#	Instancing blogabet object
 	b 	=	Blogabet()
 
-	#	Login into website
-	#b.blogabet_login()
-
+	#	Getting tipster name	
 	tipster =	input('Tipster to analyze: ').strip()
-	#t 		=	b.scrape_tipster(tipster)
+	t 		=	b.scrape_tipster(tipster)
 
-
-	b.download_xls(tipster)
-
-
+	#	Printing stats
 	b.print_tipster_info(t)
 	b.driver.close()
 
