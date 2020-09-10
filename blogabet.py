@@ -26,7 +26,7 @@ class Blogabet(object):
 
 	def get_driver(self):
 		options 		= 	Options()
-		options.add_argument("download.default_directory=/home/espinosa012/Documents/blogabetAnalyzer")
+		options.add_argument("download.default_directory=/home/username/Downloads")
 
 
 		#	Comment this line to not headless web navigator
