@@ -4,11 +4,9 @@ import 	datetime
 import 	platform
 from 	getpass 									import 	getpass
 
-import 	bba_image
-
 from 	bs4 										import 	BeautifulSoup
 from 	PIL 										import 	Image
-from 	selenium.webdriver 							import 	Chrome
+from 	selenium.webdriver 							import 	Chrome, Firefox
 from    selenium.webdriver.support.wait     		import 	WebDriverWait
 from    selenium.webdriver.chrome.options   		import 	Options
 from 	selenium.webdriver.common.keys 				import 	Keys
@@ -16,6 +14,9 @@ from 	selenium.webdriver.common.by 				import 	By
 from 	selenium.webdriver.support 					import 	expected_conditions as EC
 from 	selenium.webdriver.common.action_chains 	import 	ActionChains
 
+import 	undetected_chromedriver as uc
+
+from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 
 
 class Blogabet(object):
@@ -25,9 +26,11 @@ class Blogabet(object):
 
 	logged_in 	=	False
 	
+
+
+
 	def __init__(self):
-		#self.email, self.password   	=	self.get_credentials()
-		self.driver 					=	self.get_driver()
+		self.driver	=	self.get_driver()
 		
 
 
@@ -41,54 +44,13 @@ class Blogabet(object):
 
 		return email, password
 
+
+
 	def get_driver(self):
 		options 		= 	Options()
-
 		#	Comment this line to not headless web navigator
-		#options.add_argument('--headless')
-
-		webdriver_path 	= 	'webdriver/chromedriver'
-		if 'Win' in str(platform.system()):
-			webdriver_path	=	webdriver_path+'.exe'
-
-		try:
-			driver 	=	Chrome(executable_path=webdriver_path, chrome_options=options)
-			driver.maximize_window()
-			return driver
-		except Exception as e:
-			raise Exception('Could not get webdriver ({}), please download webdriver for your platform from https://chromedriver.chromium.org/'.format(e))
-
-
-	def blogabet_login(self):
-
-		#	Login info
-		self.email 		=	input('Blogabet email: ')
-		self.password 	=	input('Blogabet password: ')
-
-		#!!!!
-		email 		=	self.email
-		password	=	self.password	
-
-		self.driver.get('https://blogabet.com/')
-
-		#	Login 
-		login_button	=	'.//*[contains(text(), "LOG IN")]'
-		WebDriverWait(self.driver,50).until(EC.presence_of_element_located((By.XPATH, login_button))).click()
-
-		login_form 		=	WebDriverWait(self.driver,50).until(EC.presence_of_element_located((By.CLASS_NAME, "form-horizontal")))	
-		
-		time.sleep(0.6)
-		print('Login into blogabet...')
-		time.sleep(0.6)
-		login_form.find_elements_by_tag_name('input')[0].send_keys(email)
-		time.sleep(0.6)
-		login_form.find_elements_by_tag_name('input')[1].send_keys(password + Keys.TAB + Keys.RETURN)
-		print('Login done')
-
-		self.logged_in 	=	True
-		time.sleep(3)
-		
-
+		options.add_argument('--headless')
+		return uc.Chrome(options=options)
 
 
 	def go_to_tipster_page(self, tipster):
@@ -108,6 +70,8 @@ class Blogabet(object):
 			raise Exception(e)
 
 
+
+
 	def export_stats_to_html(self):
 		pass
 
@@ -120,36 +84,27 @@ class Blogabet(object):
 		print('Tipster: ', t['name'])
 		print('Total picks: ', t['n_picks'])
 		print('Blogabet followers: ', t['n_followers'])
+		print('Price: ', t['month_price'])
+
 		print('----------------------------------------')
 		print('Total profit: ', t['profit'])
 		print('Total yield: ', t['yield'])
-		print('----------------------------------------')
-		print('-----------------SPORTS-----------------')
+		print('----------------------------------------------------------------')
+		print('-----------------------------SPORTS-----------------------------')
 		for sp in t['sports']:
-			print(sp['sport'], '\ttotal picks: ', sp['picks'])
-			print('\t\twin rate: ', sp['win_rate'], ' - ', 'profit: ', sp['profit'],  ' - ', 'yield: ', sp['yield'])
-			print('\t\todds average: ', sp['odds_avg'], ' - ', 'Stake average: ',  sp['stake_avg'])
-
-		'''		
+			print(sp['sport'], '\ntotal picks: ', sp['picks'])
+			print('\twin rate: ', sp['win_rate'], ' - ', 'profit: ', sp['profit'],  ' - ', 'yield: ', sp['yield'])
+			print('\todds average: ', sp['odds_avg'], ' - ', 'Stake average: ',  sp['stake_avg'])
+		'''
 		print(t)
 
 
-
-	def get_last_year_profits(self, tipster):
-		#self.save_profit_chart_image(tipster)
-
-		profit_chart 	=	self.driver.find_element_by_class_name('stats').find_elements_by_class_name('col-md-12')[2]#.find_elements_by_tag_name('path')
-		#value_elements	=	profit_chart.find_elements_by_tag_name('text')	
-
-		#	Obtenemos los valores del eje 'y' de la gráfica
-		y_values 			=	bba_image.get_values_from_elements(profit_chart.find_elements_by_tag_name('text'))
+		
 		
 
-		#	Obtenemos los valores reales del gráfico
-		values 	=	bba_image.get_chart_values(self.driver)		
 
 
-		#bba_image.get_profit_chart_info(tipster, value_elements)
+
 
 
 
@@ -228,12 +183,11 @@ class Blogabet(object):
 
 
 		#	Agregar al bucle 'CATEGORIES' y 'ARCHIVE'
-		stats_categories 	=	['SPORTS', 'STAKES', 'BOOKIES', 'ODDS RANGE', 'ARCHIVE']
+		stats_categories 	=	['SPORTS', 'CATEGORIES', 'STAKES', 'BOOKIES', 'ODDS RANGE']
 		for sc in stats_categories:
 			try:
 				#	Comprobamos si el menú esta desplegado
 				collapse 		=	WebDriverWait(self.driver,30).until(EC.presence_of_element_located((By.XPATH, '//*[contains(text(), "{}")]'.format(sc)))).find_element_by_xpath('../../..').find_element_by_id('collapse{}alltime'.format(sc.lower().replace(' ', '_')))
-				collapse_class	=	collapse.get_attribute('class')
 
 				table 			=	collapse.find_element_by_tag_name('table')
 
@@ -263,14 +217,20 @@ class Blogabet(object):
 
 				tipster_dict[sc.lower()]	=	sc_dicts
 			except:
-				#print('Error gettin stats ({})'.format(sc))
-				pass
+				print('Error getting stats ({})'.format(sc))
+				
 
 		#	Corregimos el error que aparece al tomar la info de bookies con bloqueo
 		for b in tipster_dict['bookies']:
 			b['bookie'] 	=	b['bookie'].split('&')[0].strip()
 
+		#	Corregimos el formato de 'categories'
 
+		for ct in tipster_dict['categories']:
+			it 	=	ct['categories'].split('data-original-title=')[1].split('</i>')
+			ct['categories'] = it[0].strip().replace('"','').replace('>','') + ' - ' + it[1].strip()
+		'''
+		'''
 
 		#	Datos por meses
 		history 	=	[]
@@ -282,25 +242,26 @@ class Blogabet(object):
 
 		time.sleep(1.5)
 
-		trs 	=	self.driver.find_elements_by_class_name('tbl')[5].find_elements_by_tag_name('tr')
-		for tr in trs[1:]:
-			tds 	= 	tr.find_elements_by_tag_name('td')
+		try:
+			trs 	=	self.driver.find_elements_by_class_name('tbl')[5].find_elements_by_tag_name('tr')
+			for tr in trs[1:]:
+				tds 	= 	tr.find_elements_by_tag_name('td')
 
-			month 	=	tds[0].get_attribute('innerHTML').strip().split('</label>')[1].strip()
-			n_picks	=	tds[1].get_attribute('innerHTML').strip()
-			profit 	=	tds[2].get_attribute('innerHTML').strip().split('>')[1].strip().split('<')[0]
+				month 	=	tds[0].get_attribute('innerHTML').strip().split('</label>')[1].strip()
+				n_picks	=	tds[1].get_attribute('innerHTML').strip()
+				profit 	=	tds[2].get_attribute('innerHTML').strip().split('>')[1].strip().split('<')[0]
 
-			history.append({
-				'month':month,
-				'n_picks':n_picks,
-				'profit':profit
-			})
+				history.append({
+					'month':month,
+					'n_picks':n_picks,
+					'profit':profit
+				})
+		
+		except:
+			print('Could not get tipster history')
 
-			'''
-			'''
 
 		tipster_dict['history'] 	=	history
-		print(tipster_dict)
 
 		return tipster_dict
 

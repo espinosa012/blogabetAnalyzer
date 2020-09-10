@@ -1,3 +1,4 @@
 bs4
 selenium
 html2text
+git+https://github.com/ultrafunkamsterdam/undetected-chromedriver.git
