@@ -2,3 +2,5 @@ venv/
 deprecated.py
 bet_markets.py
 bba_image.py
+test.py
+image.py

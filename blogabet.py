@@ -1,22 +1,13 @@
 from __future__										import 	print_function
 import  time
-import 	datetime
-import 	platform
-from 	getpass 									import 	getpass
-
 from 	bs4 										import 	BeautifulSoup
-from 	PIL 										import 	Image
-from 	selenium.webdriver 							import 	Chrome, Firefox
 from    selenium.webdriver.support.wait     		import 	WebDriverWait
 from    selenium.webdriver.chrome.options   		import 	Options
-from 	selenium.webdriver.common.keys 				import 	Keys
 from 	selenium.webdriver.common.by 				import 	By
 from 	selenium.webdriver.support 					import 	expected_conditions as EC
-from 	selenium.webdriver.common.action_chains 	import 	ActionChains
 
 import 	undetected_chromedriver as uc
 
-from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 
 
 class Blogabet(object):
@@ -33,24 +24,17 @@ class Blogabet(object):
 		self.driver	=	self.get_driver()
 		
 
-
-	def get_credentials(self, credentials_path='credentials.csv'):
-		#	Get credentials
-		try:
-			email, password 	=	open(credentials_path, 'r').readlines()[0].split(';')
-		except Exception as e:
-			email 		=	input('Could not get Blogabet credentials from credentials file. Please, introduce your email (the one you registered with): ')
-			password	=	getpass('Introduce your blogabet password: ')
-
-		return email, password
-
-
-
 	def get_driver(self):
 		options 		= 	Options()
+		options.add_argument("download.default_directory=/home/espinosa012/Documents/blogabetAnalyzer")
+
+
 		#	Comment this line to not headless web navigator
-		options.add_argument('--headless')
+		#options.add_argument('--headless')
 		return uc.Chrome(options=options)
+
+	def login(self):
+		pass
 
 
 	def go_to_tipster_page(self, tipster):
@@ -78,6 +62,7 @@ class Blogabet(object):
 
 
 
+
 	def print_tipster_info(self, t):
 		#	Method to print information in a more kind manner. Receives tipster dict
 		'''
@@ -99,18 +84,22 @@ class Blogabet(object):
 		print(t)
 
 
-		
-		
+	def download_xls(self, tipster):
+		#	Download xls file with picks history (not available for all tipsters).
+		#	Yo need to login in order to download xls file.
+		try:
+			self.go_to_tipster_page(tipster)
+		except Exception as e:
+			raise e
 
-
-
+		WebDriverWait(self.driver,20).until(EC.presence_of_element_located((By.XPATH, '//*[contains(@class, "_follow")]'))).click()
+		WebDriverWait(self.driver,20).until(EC.presence_of_element_located((By.XPATH, '//*[contains(text(), "XLS")]'))).click()
 
 
 
 
 	def save_profit_chart_image(self, tipster):
-		#	Guarda una imagen png del elemento web del gráfico de beneficios del último año
-
+		#	Save a png image of last year profit graphic
 		profit_chart 	=	self.driver.find_element_by_class_name('stats').find_elements_by_class_name('col-md-12')[2]#.find_elements_by_tag_name('path')
 
 		location 	= 	profit_chart.location
@@ -140,14 +129,10 @@ class Blogabet(object):
 
 	def scrape_tipster(self, tipster):
 		#	Scrape tipster stats from its blog page. Method returns a dict with stats
-		#if not self.logged_in:
-			#self.blogabet_login()
 		try:
 			self.go_to_tipster_page(tipster)
 		except Exception as e:
 			raise e
-
-		#driver 	=	self.driver
 
 
 		tipster_dict 	=	{'name':tipster}
@@ -165,22 +150,13 @@ class Blogabet(object):
 
 
 
-		
-
-
-
-
-		#	Entramos en el menú de estadísticas
+		#	Enter statistics menu.
 		WebDriverWait(self.driver,50).until(EC.presence_of_element_located((By.XPATH, '//*[contains(text(), "Blog menu")]'))).click()
 
 		options_menu 	=	WebDriverWait(self.driver,30).until(EC.presence_of_element_located((By.XPATH, '//*[contains(@class, "modal-body blog-menu")]')))
 		time.sleep(1)
 
 		options_menu.find_elements_by_tag_name('a')[1].click()
-
-		#	Clickamos en 'All-times' para obtener las estadísticas totales de los tipsters de pago (no funciona)
-		pass
-
 
 		#	Agregar al bucle 'CATEGORIES' y 'ARCHIVE'
 		stats_categories 	=	['SPORTS', 'CATEGORIES', 'STAKES', 'BOOKIES', 'ODDS RANGE']
@@ -219,18 +195,16 @@ class Blogabet(object):
 			except:
 				print('Error getting stats ({})'.format(sc))
 				
-
-		#	Corregimos el error que aparece al tomar la info de bookies con bloqueo
+		#	Correct bookie's error
 		for b in tipster_dict['bookies']:
 			b['bookie'] 	=	b['bookie'].split('&')[0].strip()
 
 		#	Corregimos el formato de 'categories'
-
+		#	Correnct 'categories' format
 		for ct in tipster_dict['categories']:
 			it 	=	ct['categories'].split('data-original-title=')[1].split('</i>')
 			ct['categories'] = it[0].strip().replace('"','').replace('>','') + ' - ' + it[1].strip()
-		'''
-		'''
+
 
 		#	Datos por meses
 		history 	=	[]
