@@ -114,9 +114,6 @@ class Blogabet(object):
 		pass
 
 
-
-
-
 	def print_tipster_info(self, t):
 		#	Method to print information in a more kind manner. Receives tipster dict
 		print(t)
@@ -124,13 +121,14 @@ class Blogabet(object):
 
 	def download_xls(self, tipster):
 		#	Download xls file with picks history (not available for all tipsters).
-		#	Yo need to login in order to download xls file.
+		#	You need to login in order to download xls file.
 		self.login()
 
 		time.sleep(5)
 		print('Downloading xls file')
 		self.driver.get('https://{}.blogabet.com/blog/sellerPicksExport'.format(tipster))
-		#	si nos lleva a la página del tipster, no hemos podido descargar el xls (comprobar current url)
+		
+		#	We check url to determine wheter we have downloaded the file (it's not always available)
 		time.sleep(5)
 		if tipster in self.driver.current_url:
 			print('Could not download xls file for {}'.format(tipster))
@@ -151,8 +149,6 @@ class Blogabet(object):
 		
 		width 	= 	location['x']+size['width'] 
 		height 	= 	location['y']+size['height'] 
-
-
 
 
 		#	.convert('RGB') si se somite, incluye canal alpha
@@ -307,23 +303,3 @@ class Blogabet(object):
 
 		return tipster_dict
 						
-
-
-	 
-
-
-	def lab(self):
-		'''
-		Looks for picks in 'lab' collection and determine result
-		'''	
-		db_uri 	=	open('db_conn_string.txt', 'r').read().strip()
-		lab 	=	MongoClient(db_uri).betshit4.lab
-
-		for p in lab.find():
-			pick 	=	Pick(p)
-			pick.print_pick()
-
-			input('continue?')
-
-		
-
