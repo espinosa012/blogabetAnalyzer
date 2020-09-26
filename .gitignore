@@ -1,6 +1,4 @@
-venv/
-deprecated.py
 bet_markets.py
-bba_image.py
-test.py
 image.py
+db_conn_string.txt
+following_tipsters.txt

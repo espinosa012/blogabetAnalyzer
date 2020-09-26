@@ -1,13 +1,19 @@
 from __future__										import 	print_function
 import  time
+import 	datetime
 from 	bs4 										import 	BeautifulSoup
 from    selenium.webdriver.support.wait     		import 	WebDriverWait
 from    selenium.webdriver.chrome.options   		import 	Options
+from 	selenium.webdriver.common.keys 				import 	Keys
 from 	selenium.webdriver.common.by 				import 	By
 from 	selenium.webdriver.support 					import 	expected_conditions as EC
+from 	pymongo 									import	MongoClient 	
 
 import 	undetected_chromedriver as uc
+import	getpass
 
+from Pick 		import 	Pick
+from Tipster 	import 	Tipster
 
 
 class Blogabet(object):
@@ -18,29 +24,77 @@ class Blogabet(object):
 	logged_in 	=	False
 	
 
-
-
 	def __init__(self):
 		self.driver	=	self.get_driver()
 		
 
 	def get_driver(self):
 		options 		= 	Options()
-		options.add_argument("download.default_directory=/home/username/Downloads")
-
+		#options.add_argument("download.default_directory=/home/espinosa012/Documents/blogabetAnalyzer/xls/")
 
 		#	Comment this line to not headless web navigator
-		#options.add_argument('--headless')
-		return uc.Chrome(options=options)
+		options.add_argument('--headless')
+		driver 	=	uc.Chrome(options=options)
+		driver.maximize_window()
+		return driver
+
+	def get_blogabet_credentials(self):
+		pass
 
 	def login(self):
-		pass
+		if self.logged_in:
+			print('Already logged in.')
+			return True
+
+		print('Login into blogabet.com...')
+		if not self.driver:
+			self.set_driver()
+
+		if not self.email: 
+			self.email 		=	input('Blogabet email: ').strip()
+		if not self.password:
+			self.password 	=	getpass.getpass('Blogabet password: ').strip()
+		
+
+		self.driver.get('https://blogabet.com/')
+
+		#	Login 
+		login_button	=	'.//*[contains(text(), "LOG IN")]'
+		WebDriverWait(self.driver,50).until(EC.presence_of_element_located((By.XPATH, login_button))).click()
+
+		login_form 		=	WebDriverWait(self.driver,50).until(EC.presence_of_element_located((By.CLASS_NAME, "form-horizontal")))	
+		
+		time.sleep(0.6)
+		print('Login into blogabet...')
+		time.sleep(0.6)
+		login_form.find_elements_by_tag_name('input')[0].send_keys(self.email)
+		time.sleep(0.6)
+		login_form.find_elements_by_tag_name('input')[1].send_keys(self.password + Keys.TAB + Keys.RETURN)
+		
+
+		print('Login done')
+		self.logged_in 	=	True
+		
+
+
+
+	def analyze_tipster(self, tipster=None):
+		#	Getting tipster name	
+		if not tipster:
+			tipster =	input('Tipster to analyze: ').strip()
+
+		t 	=	self.scrape_tipster_(tipster)
+
+		#	Printing stats
+		self.print_tipster_info(t)
+		
+
+
 
 
 	def go_to_tipster_page(self, tipster):
 		try:
 			self.driver.get('https://{}.blogabet.com/'.format(tipster))
-
 			try:
 				WebDriverWait(self.driver,20).until(EC.presence_of_element_located((By.XPATH, '//*[contains(text(), "Win rate")]')))
 				return True
@@ -65,36 +119,21 @@ class Blogabet(object):
 
 	def print_tipster_info(self, t):
 		#	Method to print information in a more kind manner. Receives tipster dict
-		'''
-		print('Tipster: ', t['name'])
-		print('Total picks: ', t['n_picks'])
-		print('Blogabet followers: ', t['n_followers'])
-		print('Price: ', t['month_price'])
-
-		print('----------------------------------------')
-		print('Total profit: ', t['profit'])
-		print('Total yield: ', t['yield'])
-		print('----------------------------------------------------------------')
-		print('-----------------------------SPORTS-----------------------------')
-		for sp in t['sports']:
-			print(sp['sport'], '\ntotal picks: ', sp['picks'])
-			print('\twin rate: ', sp['win_rate'], ' - ', 'profit: ', sp['profit'],  ' - ', 'yield: ', sp['yield'])
-			print('\todds average: ', sp['odds_avg'], ' - ', 'Stake average: ',  sp['stake_avg'])
-		'''
 		print(t)
 
 
 	def download_xls(self, tipster):
 		#	Download xls file with picks history (not available for all tipsters).
 		#	Yo need to login in order to download xls file.
-		try:
-			self.go_to_tipster_page(tipster)
-		except Exception as e:
-			raise e
+		self.login()
 
-		WebDriverWait(self.driver,20).until(EC.presence_of_element_located((By.XPATH, '//*[contains(@class, "_follow")]'))).click()
-		WebDriverWait(self.driver,20).until(EC.presence_of_element_located((By.XPATH, '//*[contains(text(), "XLS")]'))).click()
-
+		time.sleep(5)
+		print('Downloading xls file')
+		self.driver.get('https://{}.blogabet.com/blog/sellerPicksExport'.format(tipster))
+		#	si nos lleva a la página del tipster, no hemos podido descargar el xls (comprobar current url)
+		time.sleep(5)
+		if tipster in self.driver.current_url:
+			print('Could not download xls file for {}'.format(tipster))
 
 
 
@@ -126,21 +165,27 @@ class Blogabet(object):
 
 
 
+	def scrape_tipster_(self, tipster):
+		#	Scrape tipster bet365 stats from its blog page. Method returns a dict with stats
+		tipster_dict 	=	{
+			'name':tipster, 
+			'analysis_date':datetime.date.today().strftime("%d/%m/%Y"),
+			'n_followers':'',
+			'month_price':'',
 
-	def scrape_tipster(self, tipster):
-		#	Scrape tipster stats from its blog page. Method returns a dict with stats
+			'stat_types':[],
+			'bet365':{'n_picks':'', 'profit':''},
+
+			'stakes':[],
+			'sports':[],
+			'history':[],
+		}
+
 		try:
 			self.go_to_tipster_page(tipster)
 		except Exception as e:
 			raise e
 
-
-		tipster_dict 	=	{'name':tipster}
-		self.go_to_tipster_page(tipster)
-
-		tipster_dict['n_picks']		=	self.driver.find_element_by_id('header-picks').get_attribute('innerHTML').strip()
-		tipster_dict['profit']		=	self.driver.find_element_by_id('header-profit').get_attribute('innerHTML').strip()
-		tipster_dict['yield']		=	self.driver.find_element_by_id('header-yield').get_attribute('innerHTML').strip()
 		tipster_dict['n_followers']	=	self.driver.find_element_by_id('header-followers').get_attribute('innerHTML').strip()
 
 		try:
@@ -148,95 +193,137 @@ class Blogabet(object):
 		except:
 			tipster_dict['month_price']	=	'free'
 
-
-
-		#	Enter statistics menu.
-		WebDriverWait(self.driver,50).until(EC.presence_of_element_located((By.XPATH, '//*[contains(text(), "Blog menu")]'))).click()
-
+		WebDriverWait(self.driver,10).until(EC.presence_of_element_located((By.XPATH, '//*[contains(text(), "Blog menu")]'))).click()
+		
 		options_menu 	=	WebDriverWait(self.driver,30).until(EC.presence_of_element_located((By.XPATH, '//*[contains(@class, "modal-body blog-menu")]')))
 		time.sleep(1)
 
-		options_menu.find_elements_by_tag_name('a')[1].click()
-
-		#	Agregar al bucle 'CATEGORIES' y 'ARCHIVE'
-		stats_categories 	=	['SPORTS', 'CATEGORIES', 'STAKES', 'BOOKIES', 'ODDS RANGE']
-		for sc in stats_categories:
-			try:
-				#	Comprobamos si el menú esta desplegado
-				collapse 		=	WebDriverWait(self.driver,30).until(EC.presence_of_element_located((By.XPATH, '//*[contains(text(), "{}")]'.format(sc)))).find_element_by_xpath('../../..').find_element_by_id('collapse{}alltime'.format(sc.lower().replace(' ', '_')))
-
-				table 			=	collapse.find_element_by_tag_name('table')
-
-				sc_dicts		=	[]											
-				table_headers 	=	table.find_elements_by_tag_name('th')		#	encabezados de la tabla
-				regs 			=	table.find_elements_by_tag_name('tr')[1:]	#	cada uno de los registros de la tabla
-
-				for r in regs:
-					cols 			=	[]
-					col_0 	=	r.find_element_by_tag_name('td').get_attribute('innerHTML').replace('\n','')[28:].strip()
-					if 'Bet365' in col_0: col_0 = 'Bet365'
-					cols.append(col_0)
-					for col in r.find_elements_by_tag_name('td')[1:]:
-						try:
-							col = 	col.find_element_by_tag_name('span').get_attribute('innerHTML').strip()
-						except:
-							col = 	col.get_attribute('innerHTML').strip()
-
-						cols.append(col)
-
-					ths 	=	[]
-					sc_dict	=	{}											#	diccionario para almacenar cada registro de la tabla
-					for th in table_headers:
-						sc_dict[th.get_attribute('innerHTML').strip().lower().replace(' ', '_').replace('.','').replace('stakes', 'stake').replace('sports', 'sport').replace('bookies', 'bookie')] 	=	cols[table_headers.index(th)] 
-				
-					sc_dicts.append(sc_dict)
-
-				tipster_dict[sc.lower()]	=	sc_dicts
-			except:
-				print('Error getting stats ({})'.format(sc))
-				
-		#	Correct bookie's error
-		for b in tipster_dict['bookies']:
-			b['bookie'] 	=	b['bookie'].split('&')[0].strip()
-
-		#	Corregimos el formato de 'categories'
-		#	Correnct 'categories' format
-		for ct in tipster_dict['categories']:
-			it 	=	ct['categories'].split('data-original-title=')[1].split('</i>')
-			ct['categories'] = it[0].strip().replace('"','').replace('>','') + ' - ' + it[1].strip()
+		#	Click on PICKS ARCHIVE
+		options_menu.find_elements_by_tag_name('a')[2].click()
 
 
-		#	Datos por meses
-		history 	=	[]
-
-		WebDriverWait(self.driver,50).until(EC.presence_of_element_located((By.XPATH, '//*[contains(text(), "STATISTICS")]'))).click()
-		time.sleep(1.5)
-		WebDriverWait(self.driver,30).until(EC.presence_of_element_located((By.XPATH, '//*[contains(@class, "modal-body blog-menu")]'))).find_elements_by_tag_name('a')[2].click()
-
-
-		time.sleep(1.5)
-
+		#	Cookies holder
 		try:
-			trs 	=	self.driver.find_elements_by_class_name('tbl')[5].find_elements_by_tag_name('tr')
-			for tr in trs[1:]:
-				tds 	= 	tr.find_elements_by_tag_name('td')
-
-				month 	=	tds[0].get_attribute('innerHTML').strip().split('</label>')[1].strip()
-				n_picks	=	tds[1].get_attribute('innerHTML').strip()
-				profit 	=	tds[2].get_attribute('innerHTML').strip().split('>')[1].strip().split('<')[0]
-
-				history.append({
-					'month':month,
-					'n_picks':n_picks,
-					'profit':profit
-				})
-		
+			self.driver.find_element_by_xpath('//*[contains(@class, "cookiesHolder")]').find_element_by_tag_name('button').click()
 		except:
-			print('Could not get tipster history')
+			pass
 
 
-		tipster_dict['history'] 	=	history
+
+		#	Wait the lateral panel to completly load
+		table 	=	WebDriverWait(self.driver,15).until(EC.presence_of_element_located((By.XPATH, '//table[contains(@class, "tbl")]')))
+		tables 	=	self.driver.find_elements_by_xpath('//table[contains(@class, "tbl")]')
+
+		#	Click in "All" to not to see only "Paid" picks info and get stat_types to study proportion of free and premium picks
+		for table in tables:
+			if 'Stat type' in table.get_attribute('innerHTML'):
+
+				#	Click in "All" to not to see only "Paid" picks
+				table.find_elements_by_tag_name('tr')[1].find_elements_by_tag_name('td')[0].click()
+				
+				#	Reload elements
+				table_index 	=	tables.index(table)
+				table 	=	WebDriverWait(self.driver,10).until(EC.presence_of_element_located((By.XPATH, '//table[contains(@class, "tbl")]')))
+				table 	=	self.driver.find_elements_by_xpath('//table[contains(@class, "tbl")]')[table_index]
+
+				#	Get tipster stat_type
+				for tr in table.find_elements_by_tag_name('tr')[1:]:
+					tds	=	tr.find_elements_by_tag_name('td')
+					tipster_dict['stat_types'].append({
+						'stat_type':tds[0].get_attribute('innerHTML').split('</label>')[1].strip(),
+						'n_picks':int(tds[1].get_attribute('innerHTML').strip()),
+						'profit':float(tds[2].find_element_by_tag_name('span').get_attribute('innerHTML').strip()),
+					})
+
+				#	Get "Free" stat_type
+				free_n_picks 	=	tipster_dict['stat_types'][0]['n_picks'] - tipster_dict['stat_types'][1]['n_picks']
+				try:
+					free_n_picks 	=	free_n_picks - tipster_dict['stat_types'][2]['n_picks']
+				except:
+					pass
+
+				free_profit 	=	tipster_dict['stat_types'][0]['profit'] - tipster_dict['stat_types'][1]['profit']
+				try:
+					free_profit 	=	free_profit - tipster_dict['stat_types'][2]['profit']
+				except:
+					pass
+
+				tipster_dict['stat_types'].append({
+					'stat_type':'Free', 
+					'n_picks':free_n_picks,
+					'profit':free_profit
+				})
+
+
+		#	Analyze only bet 365 picks (all, not only paid)
+		WebDriverWait(self.driver,10).until(EC.presence_of_element_located((By.XPATH, '//*[text()="Picks archive"]')))
+
+		table 	=	WebDriverWait(self.driver,10).until(EC.presence_of_element_located((By.XPATH, '//table[contains(@class, "tbl")]')))
+		tables 	=	self.driver.find_elements_by_xpath('//table[contains(@class, "tbl")]')
+		for table in tables:
+			if 'Bookmakers' in table.get_attribute('innerHTML'):
+				for tr in table.find_elements_by_tag_name('tr'):
+					if 'Bet365' in tr.get_attribute('innerHTML'):
+						tipster_dict['bet365']['n_picks'] 	=	int(tr.find_elements_by_tag_name('td')[1].get_attribute('innerHTML').strip())
+						tipster_dict['bet365']['profit'] 	=	int(tr.find_elements_by_tag_name('td')[2].find_element_by_tag_name('span').get_attribute('innerHTML').strip())
+						tr.click()
+
+		#	Get 'All' stats (not only paid) (after clicking)		
+		WebDriverWait(self.driver,10).until(EC.presence_of_element_located((By.XPATH, '//*[text()="Stat type"]')))
+		
+
+
+		table 	=	WebDriverWait(self.driver,10).until(EC.presence_of_element_located((By.XPATH, '//table[contains(@class, "tbl")]')))
+		tables 	=	self.driver.find_elements_by_xpath('//table[contains(@class, "tbl")]')
+
+		time.sleep(3)
+		'''
+		Tables: Stakes, Leagues, Month
+		'''
+		stakes_table 	=	WebDriverWait(self.driver,10).until(EC.presence_of_element_located((By.XPATH, '//th[contains(text(), "Stakes")]')))
+		for tr in stakes_table.find_element_by_xpath('../../..').find_element_by_tag_name('tbody').find_elements_by_tag_name('tr'):
+			tipster_dict['stakes'].append({
+				'stake':tr.find_elements_by_tag_name('td')[0].get_attribute('innerHTML').split('</label>')[1].strip(),
+				'n_picks':tr.find_elements_by_tag_name('td')[1].get_attribute('innerHTML').strip(),
+				'profit':int(tr.find_elements_by_tag_name('td')[2].find_element_by_tag_name('span').get_attribute('innerHTML').strip())
+			})
+
+		sports_table 	=	WebDriverWait(self.driver,10).until(EC.presence_of_element_located((By.XPATH, '//th[contains(text(), "Leagues")]')))
+		for tr in sports_table.find_element_by_xpath('../../..').find_element_by_tag_name('tbody').find_elements_by_tag_name('tr'):
+			tipster_dict['sports'].append({
+				'sport':tr.find_element_by_xpath('.//i[contains(@class, "enable-tooltip sport-icon ")]').get_attribute('data-original-title'),
+				'n_picks':tr.find_elements_by_tag_name('td')[1].get_attribute('innerHTML'),
+				'profit':tr.find_elements_by_tag_name('td')[2].find_element_by_tag_name('span').get_attribute('innerHTML')
+			})
+
+		history_table 	=	WebDriverWait(self.driver,10).until(EC.presence_of_element_located((By.XPATH, '//th[contains(text(), "Month")]')))
+		for tr in history_table.find_element_by_xpath('../../..').find_element_by_tag_name('tbody').find_elements_by_tag_name('tr'):
+			tipster_dict['history'].append({
+				'month':tr.find_elements_by_tag_name('td')[0].get_attribute('innerHTML').split('</label>')[1].strip(),
+				'n_picks':tr.find_elements_by_tag_name('td')[1].get_attribute('innerHTML').strip(),
+				'profit':int(tr.find_elements_by_tag_name('td')[2].find_element_by_tag_name('span').get_attribute('innerHTML').strip())
+			})
+
 
 		return tipster_dict
+						
 
-			 
+
+	 
+
+
+	def lab(self):
+		'''
+		Looks for picks in 'lab' collection and determine result
+		'''	
+		db_uri 	=	open('db_conn_string.txt', 'r').read().strip()
+		lab 	=	MongoClient(db_uri).betshit4.lab
+
+		for p in lab.find():
+			pick 	=	Pick(p)
+			pick.print_pick()
+
+			input('continue?')
+
+		
+
